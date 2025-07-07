@@ -205,4 +205,90 @@ public class ProjectDao extends DaoBase {
 		}
 	}
 
+
+	public boolean modifyProjectDetails(Project project) {
+		// @formatter:off
+	    // We have exactly 6 “?” placeholders in this SQL:
+	    //   1 → project_name
+	    //   2 → estimated_hours
+	    //   3 → actual_hours
+	    //   4 → difficulty
+	    //   5 → notes
+	    //   6 → project_id (in WHERE)
+	    String sql = ""
+	        + " UPDATE " + PROJECT_TABLE + " SET "
+	        + "   project_name     = ?, "
+	        + "   estimated_hours  = ?, "
+	        + "   actual_hours     = ?, "
+	        + "   difficulty       = ?, "
+	        + "   notes            = ? "
+	        + " WHERE project_id   = ?";
+	    // @formatter:on
+				
+				try(Connection conn = DbConnection.getConnection()) {
+					startTransaction(conn);
+					
+					try(PreparedStatement stmt = conn.prepareStatement(sql)){
+						setParameter(stmt, 1, project.getProjectName(), String.class);
+						setParameter(stmt, 2, project.getEstimatedHours(), BigDecimal.class);
+						setParameter(stmt, 3, project.getActualHours(), BigDecimal.class);
+						setParameter(stmt, 4, project.getDifficulty(), Integer.class);
+						setParameter(stmt, 5, project.getNotes(), String.class);
+						setParameter(stmt, 6, project.getProjectId(), Integer.class);
+						
+						boolean modified = stmt.executeUpdate() ==1 ;
+						commitTransaction(conn);
+						
+						
+						return modified;
+					}
+					catch(Exception e) {
+						rollbackTransaction(conn);
+						throw new DbException(e);
+					}
+				}
+				
+				catch(SQLException e) {
+					throw new DbException(e);
+				}
+	}
+
+
+	/**
+	 * Deletes the project with the given ID. All child rows
+	 * in material, step, and project_category are removed
+	 * automatically by ON DELETE CASCADE.
+	 *
+	 * @param projectId the ID of the project to delete
+	 * @return true if exactly one row was deleted
+	 * @throws DbException on SQL or transaction errors
+	 */
+	public boolean deleteProject(Integer projectId) {
+	    // 1 placeholder → project_id in WHERE
+	    String sql = ""
+	        + "DELETE FROM " + PROJECT_TABLE
+	        + " WHERE project_id = ?";
+
+	    try (Connection conn = DbConnection.getConnection()) {
+	        startTransaction(conn);
+	        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+	            // bind the projectId
+	            setParameter(stmt, 1, projectId, Integer.class);
+
+	            // execute and check exactly one row affected
+	            boolean deleted = (stmt.executeUpdate() == 1);
+	            commitTransaction(conn);
+	            return deleted;
+	        }
+	        catch (Exception e) {
+	            rollbackTransaction(conn);
+	            throw new DbException(e);
+	        }
+	    }
+	    catch (SQLException e) {
+	        throw new DbException(e);
+	    }
+	}
+
+
 }
